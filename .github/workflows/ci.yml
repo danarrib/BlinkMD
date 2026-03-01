@@ -19,8 +19,12 @@ jobs:
           version: '6.7.*'
           cache: true
 
+      - name: Install librsvg
+        run: choco install librsvg
+        shell: cmd
+
       - name: Generate icon (PNG only)
-        run: magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+        run: rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
         shell: cmd
 
       - name: Configure
@@ -50,8 +54,11 @@ jobs:
           version: '6.7.*'
           cache: true
 
+      - name: Install librsvg
+        run: sudo apt-get install -y librsvg2-bin
+
       - name: Generate icon (PNG only)
-        run: convert -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+        run: rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
 
       - name: Configure
         run: cmake -B build-linux -DCMAKE_BUILD_TYPE=Release

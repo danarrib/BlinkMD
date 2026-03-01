@@ -21,10 +21,14 @@ jobs:
           version: '6.7.*'
           cache: true
 
+      - name: Install librsvg
+        run: choco install librsvg
+        shell: cmd
+
       - name: Generate icons
         run: |
-          magick -background none blinkmd-icon.svg -define icon:auto-resize=256,48,32,16 blinkmd.ico
-          magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+          rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
+          magick -background none blinkmd-256.png -define icon:auto-resize=256,48,32,16 blinkmd.ico
         shell: cmd
 
       - name: Configure
@@ -67,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install imagemagick
+        run: brew install librsvg
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -79,11 +83,11 @@ jobs:
         run: |
           mkdir -p blinkmd.iconset
           for size in 16 32 128 256 512; do
-            magick -background none blinkmd-icon.svg -resize ${size}x${size} blinkmd.iconset/icon_${size}x${size}.png
-            magick -background none blinkmd-icon.svg -resize $((size*2))x$((size*2)) blinkmd.iconset/icon_${size}x${size}@2x.png
+            rsvg-convert -w ${size} -h ${size} blinkmd-icon.svg -o blinkmd.iconset/icon_${size}x${size}.png
+            rsvg-convert -w $((size*2)) -h $((size*2)) blinkmd-icon.svg -o blinkmd.iconset/icon_${size}x${size}@2x.png
           done
           iconutil -c icns blinkmd.iconset -o blinkmd.icns
-          magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+          rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
 
       - name: Configure
         run: |
@@ -124,7 +128,7 @@ jobs:
             libgl1-mesa-dev \
             libxkbcommon-dev \
             libxkbcommon-x11-dev \
-            imagemagick \
+            librsvg2-bin \
             fuse \
             libfuse2
 
@@ -135,7 +139,7 @@ jobs:
           cache: true
 
       - name: Generate icon
-        run: convert -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+        run: rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
 
       - name: Configure
         run: cmake -B build-linux -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
