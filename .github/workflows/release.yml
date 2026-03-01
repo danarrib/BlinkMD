@@ -1,0 +1,184 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release-windows:
+    name: Release (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+        shell: cmd
+
+      - name: Install Qt (static) via vcpkg
+        run: C:\vcpkg\vcpkg.exe install qt6-base:x64-windows-static
+        shell: cmd
+
+      - name: Generate icons
+        run: |
+          magick -background none blinkmd-icon.svg -define icon:auto-resize=256,48,32,16 blinkmd.ico
+          magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+        shell: cmd
+
+      - name: Configure
+        run: |
+          cmake -B build-windows ^
+            -G "Visual Studio 17 2022" -A x64 ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake ^
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static
+        shell: cmd
+
+      - name: Build
+        run: cmake --build build-windows --config Release
+        shell: cmd
+
+      - name: Package
+        run: |
+          mkdir BlinkMD-windows-x64
+          copy build-windows\Release\BlinkMD.exe BlinkMD-windows-x64\BlinkMD.exe
+          Compress-Archive -Path BlinkMD-windows-x64\* -DestinationPath BlinkMD-windows-x64.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlinkMD-windows-x64
+          path: BlinkMD-windows-x64.zip
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlinkMD-windows-x64.zip
+
+  release-macos:
+    name: Release (macOS universal)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          cache: true
+
+      - name: Generate icons
+        run: |
+          mkdir -p blinkmd.iconset
+          for size in 16 32 128 256 512; do
+            magick -background none blinkmd-icon.svg -resize ${size}x${size} blinkmd.iconset/icon_${size}x${size}.png
+            magick -background none blinkmd-icon.svg -resize $((size*2))x$((size*2)) blinkmd.iconset/icon_${size}x${size}@2x.png
+          done
+          iconutil -c icns blinkmd.iconset -o blinkmd.icns
+          magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+
+      - name: Configure
+        run: |
+          cmake -B build-mac \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+
+      - name: Build
+        run: cmake --build build-mac -- -j$(sysctl -n hw.logicalcpu)
+
+      - name: Package DMG
+        run: |
+          cd build-mac
+          macdeployqt BlinkMD.app -dmg
+          mv BlinkMD.dmg ../BlinkMD-macos-universal.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlinkMD-macos-universal
+          path: BlinkMD-macos-universal.dmg
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlinkMD-macos-universal.dmg
+
+  release-linux:
+    name: Release (Linux AppImage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgl1-mesa-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            imagemagick \
+            fuse \
+            libfuse2
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          cache: true
+
+      - name: Generate icon
+        run: convert -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+
+      - name: Configure
+        run: cmake -B build-linux -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build and install
+        run: |
+          cmake --build build-linux -- -j$(nproc)
+          DESTDIR=$PWD/AppDir cmake --install build-linux
+
+      - name: Download linuxdeploy tools
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+      - name: Create desktop file
+        run: |
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+          cp blinkmd-256.png AppDir/usr/share/icons/hicolor/256x256/apps/blinkmd.png
+          cat > AppDir/usr/share/applications/blinkmd.desktop <<'EOF'
+          [Desktop Entry]
+          Name=BlinkMD
+          Comment=Minimal Markdown viewer
+          Exec=BlinkMD %f
+          Icon=blinkmd
+          Type=Application
+          Categories=Utility;TextEditor;
+          MimeType=text/markdown;text/x-markdown;
+          EOF
+
+      - name: Build AppImage
+        env:
+          OUTPUT: BlinkMD-linux-x86_64.AppImage
+        run: |
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --plugin qt \
+            --output appimage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlinkMD-linux-x86_64
+          path: BlinkMD-linux-x86_64.AppImage
+
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BlinkMD-linux-x86_64.AppImage

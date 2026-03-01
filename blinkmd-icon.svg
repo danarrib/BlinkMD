@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Deep background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f1923;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a2d3d;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Eye glow gradient -->
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:0.25" />
+      <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- Iris gradient -->
+    <radialGradient id="irisGrad" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" style="stop-color:#00eeff" />
+      <stop offset="50%" style="stop-color:#0099cc" />
+      <stop offset="100%" style="stop-color:#005580" />
+    </radialGradient>
+
+    <!-- Pupil gradient -->
+    <radialGradient id="pupilGrad" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" style="stop-color:#1a3a4a" />
+      <stop offset="100%" style="stop-color:#050d12" />
+    </radialGradient>
+
+    <!-- Hash mark gradient -->
+    <linearGradient id="hashGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00eeff;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#00aacc;stop-opacity:0.9" />
+    </linearGradient>
+
+    <!-- Eyelid shape clip -->
+    <clipPath id="eyeClip">
+      <ellipse cx="256" cy="256" rx="175" ry="95" />
+    </clipPath>
+
+    <!-- Drop shadow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="iconShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="6" stdDeviation="16" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="110" ry="110" fill="url(#bgGrad)" />
+
+  <!-- Subtle grid texture lines -->
+  <line x1="0" y1="170" x2="512" y2="170" stroke="#ffffff" stroke-opacity="0.025" stroke-width="1"/>
+  <line x1="0" y1="340" x2="512" y2="340" stroke="#ffffff" stroke-opacity="0.025" stroke-width="1"/>
+  <line x1="170" y1="0" x2="170" y2="512" stroke="#ffffff" stroke-opacity="0.025" stroke-width="1"/>
+  <line x1="340" y1="0" x2="340" y2="512" stroke="#ffffff" stroke-opacity="0.025" stroke-width="1"/>
+
+  <!-- Ambient glow behind eye -->
+  <ellipse cx="256" cy="256" rx="200" ry="130" fill="url(#eyeGlow)" />
+
+  <!-- Eye outer shape (almond / vesica) -->
+  <path
+    d="M 81 256
+       C 130 175, 200 148, 256 148
+       C 312 148, 382 175, 431 256
+       C 382 337, 312 364, 256 364
+       C 200 364, 130 337, 81 256 Z"
+    fill="#0a1520"
+    stroke="#00ccee"
+    stroke-width="4.5"
+    filter="url(#glow)"
+  />
+
+  <!-- Iris -->
+  <circle cx="256" cy="256" r="75" fill="url(#irisGrad)" filter="url(#glow)" />
+
+  <!-- Iris detail rings -->
+  <circle cx="256" cy="256" r="75" fill="none" stroke="#00eeff" stroke-width="1.5" stroke-opacity="0.3" />
+  <circle cx="256" cy="256" r="58" fill="none" stroke="#00eeff" stroke-width="1" stroke-opacity="0.2" />
+
+  <!-- Pupil -->
+  <circle cx="256" cy="256" r="40" fill="url(#pupilGrad)" />
+
+  <!-- Markdown "#" symbol inside pupil -->
+  <!-- Vertical bars of # -->
+  <rect x="242" y="241" width="5.5" height="31" rx="2" fill="url(#hashGrad)" />
+  <rect x="264" y="241" width="5.5" height="31" rx="2" fill="url(#hashGrad)" />
+  <!-- Horizontal bars of # -->
+  <rect x="236" y="250" width="36" height="5" rx="2" fill="url(#hashGrad)" />
+  <rect x="236" y="263" width="36" height="5" rx="2" fill="url(#hashGrad)" />
+
+  <!-- Specular highlight on iris (top-left) -->
+  <ellipse cx="232" cy="232" rx="14" ry="9"
+    fill="white" fill-opacity="0.18"
+    transform="rotate(-30 232 232)" />
+
+  <!-- Tiny specular dot -->
+  <circle cx="237" cy="228" r="4" fill="white" fill-opacity="0.35" />
+
+  <!-- Eyelashes / lash line top -->
+  <path
+    d="M 81 256 C 130 175, 200 148, 256 148 C 312 148, 382 175, 431 256"
+    fill="none"
+    stroke="#00bbdd"
+    stroke-width="2"
+    stroke-opacity="0.4"
+  />
+
+  <!-- Eyelashes / lash line bottom -->
+  <path
+    d="M 81 256 C 130 337, 200 364, 256 364 C 312 364, 382 337, 431 256"
+    fill="none"
+    stroke="#00bbdd"
+    stroke-width="2"
+    stroke-opacity="0.4"
+  />
+
+  <!-- "MD" text label at bottom -->
+  <text
+    x="256"
+    y="430"
+    text-anchor="middle"
+    font-family="'Courier New', monospace"
+    font-size="38"
+    font-weight="700"
+    letter-spacing="8"
+    fill="#00ccee"
+    fill-opacity="0.85"
+  >BLINK</text>
+
+  <!-- Thin accent line under text -->
+  <line x1="156" y1="442" x2="356" y2="442" stroke="#00ccee" stroke-width="1.5" stroke-opacity="0.35" />
+
+</svg>

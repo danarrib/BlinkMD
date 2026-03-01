@@ -1,0 +1,14 @@
+# Normalize line endings on commit; convert to platform-native on checkout
+* text=auto
+
+# Windows scripts must always use CRLF
+*.bat text eol=crlf
+
+# Unix scripts must always use LF
+*.sh text eol=lf
+
+# Keep SVG, PNG, ICO as binary
+*.svg binary
+*.png binary
+*.ico binary
+*.icns binary
