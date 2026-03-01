@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   release-windows:
     name: Release (Windows)
@@ -12,15 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-          C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
-        shell: cmd
-
-      - name: Install Qt (static) via vcpkg
-        run: C:\vcpkg\vcpkg.exe install qt6-base:x64-windows-static
-        shell: cmd
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          cache: true
 
       - name: Generate icons
         run: |
@@ -32,20 +31,22 @@ jobs:
         run: |
           cmake -B build-windows ^
             -G "Visual Studio 17 2022" -A x64 ^
-            -DCMAKE_BUILD_TYPE=Release ^
-            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake ^
-            -DVCPKG_TARGET_TRIPLET=x64-windows-static
+            -DCMAKE_BUILD_TYPE=Release
         shell: cmd
 
       - name: Build
         run: cmake --build build-windows --config Release
         shell: cmd
 
+      - name: Deploy Qt dependencies
+        run: |
+          windeployqt --no-translations --dir build-windows\deploy build-windows\Release\BlinkMD.exe
+          copy build-windows\Release\BlinkMD.exe build-windows\deploy\BlinkMD.exe
+        shell: cmd
+
       - name: Package
         run: |
-          mkdir BlinkMD-windows-x64
-          copy build-windows\Release\BlinkMD.exe BlinkMD-windows-x64\BlinkMD.exe
-          Compress-Archive -Path BlinkMD-windows-x64\* -DestinationPath BlinkMD-windows-x64.zip
+          Compress-Archive -Path build-windows\deploy\* -DestinationPath BlinkMD-windows-x64.zip
         shell: pwsh
 
       - name: Upload artifact
@@ -64,6 +65,9 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install imagemagick
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
