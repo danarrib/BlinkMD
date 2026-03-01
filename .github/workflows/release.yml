@@ -21,14 +21,10 @@ jobs:
           version: '6.7.*'
           cache: true
 
-      - name: Install librsvg
-        run: choco install librsvg
-        shell: cmd
-
       - name: Generate icons
         run: |
-          rsvg-convert -w 256 -h 256 blinkmd-icon.svg -o blinkmd-256.png
-          magick -background none blinkmd-256.png -define icon:auto-resize=256,48,32,16 blinkmd.ico
+          magick -background none blinkmd-icon.svg -resize 256x256 blinkmd-256.png
+          magick -background none blinkmd-icon.svg -define icon:auto-resize=256,48,32,16 blinkmd.ico
         shell: cmd
 
       - name: Configure
