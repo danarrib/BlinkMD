@@ -9,7 +9,10 @@ A minimal, native Markdown viewer built with C++ and Qt 6. Open a file from the 
 - Renders Markdown via Qt's built-in `QTextBrowser`
 - Drag-and-drop support
 - Command-line usage: `BlinkMD file.md`
-- No Electron, no runtime dependencies on release builds (Windows)
+- Remote images loaded asynchronously; graceful placeholder for unavailable images
+- Links open in the default browser (with confirmation); local `.md` links navigate within the app
+- Adapts to system dark/light mode — icon and rendering update live when the theme changes
+- No Electron, no installer — extract the ZIP/DMG/AppImage and run
 - Native look and feel on every platform
 
 ## Downloads
@@ -18,7 +21,7 @@ Pre-built binaries are attached to each [GitHub release](../../releases):
 
 | Platform | File |
 |----------|------|
-| Windows (x64) | `BlinkMD-windows-x64.zip` — standalone `.exe`, no installer needed |
+| Windows (x64) | `BlinkMD-windows-x64.zip` — extract and run `BlinkMD.exe`, no installer needed |
 | macOS (universal) | `BlinkMD-macos-universal.dmg` — runs on both Apple Silicon and Intel |
 | Linux (x86_64) | `BlinkMD-linux-x86_64.AppImage` — single portable file |
 
@@ -29,7 +32,7 @@ Pre-built binaries are attached to each [GitHub release](../../releases):
 **Install dependencies:**
 
 ```bash
-sudo apt-get install cmake qt6-base-dev libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev imagemagick
+sudo apt-get install cmake qt6-base-dev libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-dev librsvg2-bin
 ```
 
 **Build:**
@@ -46,7 +49,7 @@ sudo apt-get install cmake qt6-base-dev libgl1-mesa-dev libxkbcommon-dev libxkbc
 **Install dependencies** ([Homebrew](https://brew.sh)):
 
 ```bash
-brew install cmake qt imagemagick
+brew install cmake qt librsvg
 ```
 
 **Build:**
@@ -88,6 +91,8 @@ set QT_DIR=C:\Qt\6.10.2\msvc2022_64
 
 Download from [imagemagick.org](https://imagemagick.org/script/download.php#windows). During installation, check **"Add application directory to your system path"** so the `magick` command is available.
 
+> **Note:** ImageMagick is used on Windows to generate the `.ico` file. On Linux and macOS, `rsvg-convert` (from `librsvg`) is used instead because it renders SVG filters and gradients correctly.
+
 #### Build
 
 ```bat
@@ -117,17 +122,21 @@ build-windows\BlinkMD.exe file.md
 ```
 BlinkMD/
 ├── .github/workflows/
-│   ├── ci.yml          # Fast compile check on push/PR (Windows + Linux)
-│   └── release.yml     # Full packaging on tag push (Windows + macOS + Linux)
+│   ├── ci.yml              # Fast compile check on push/PR (Windows + Linux)
+│   └── release.yml         # Full packaging on tag push (Windows + macOS + Linux)
 ├── main.cpp
 ├── MainWindow.h
 ├── MainWindow.cpp
+├── MarkdownBrowser.h       # QTextBrowser subclass — async remote image loading
+├── MarkdownBrowser.cpp
+├── DebugWindow.h           # Debug log window (View → Debug Log)
+├── DebugWindow.cpp
 ├── CMakeLists.txt
-├── resources.qrc       # Embeds the app icon
-├── resources.rc        # Windows resource file (icon)
-├── blinkmd-icon.svg    # Source icon (platform icons generated at build time)
-├── build.sh            # Local build script for Linux/macOS
-└── build.bat           # Local build script for Windows
+├── resources.qrc           # Embeds the app icon
+├── resources.rc            # Windows resource file (icon)
+├── blinkmd-icon.svg        # Source icon (platform icons generated at build time)
+├── build.sh                # Local build script for Linux/macOS
+└── build.bat               # Local build script for Windows
 ```
 
 ## CI / Release

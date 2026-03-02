@@ -1,6 +1,7 @@
 #include "MainWindow.h"
+#include "DebugWindow.h"
 
-#include <QTextBrowser>
+#include <QScrollBar>
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -23,6 +24,35 @@
 #include <QTextCursor>
 #include <QTextBlock>
 #include <QDateTime>
+#include <QApplication>
+#include <QDesktopServices>
+#include <QStyleHints>
+#include <QHelpEvent>
+#include <QMessageBox>
+#include <QPixmap>
+#include <QToolTip>
+
+// Ensures every inline image in the document sits in its own paragraph block.
+// Qt renders <img> as an inline U+FFFC object regardless of surrounding newlines,
+// so text preprocessing can't force a block break — we fix it on the document directly.
+static void isolateImages(QTextDocument *doc)
+{
+    // Collect positions of all image characters first (modifying while iterating is unsafe)
+    QList<int> positions;
+    for (QTextBlock block = doc->begin(); block.isValid(); block = block.next())
+        for (QTextBlock::iterator it = block.begin(); !it.atEnd(); ++it)
+            if (it.fragment().charFormat().isImageFormat())
+                positions.append(it.fragment().position());
+
+    // Insert block breaks in reverse order so earlier positions remain valid
+    QTextCursor cursor(doc);
+    for (int i = positions.size() - 1; i >= 0; --i) {
+        cursor.setPosition(positions[i] + 1);
+        cursor.insertBlock();
+        cursor.setPosition(positions[i]);
+        cursor.insertBlock();
+    }
+}
 
 // Recursively walks all frames and applies consistent table styling:
 // 1px solid border, no cell spacing, and breathing room above/below.
@@ -55,7 +85,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(900, 700);
     setAcceptDrops(true);
 
-    m_browser = new QTextBrowser(this);
+    m_browser = new MarkdownBrowser(this);
     m_browser->setOpenLinks(false);
     m_browser->viewport()->installEventFilter(this);
     setCentralWidget(m_browser);
@@ -63,6 +93,56 @@ MainWindow::MainWindow(QWidget *parent)
     m_basePointSize = m_browser->font().pointSize();
     if (m_basePointSize <= 0)
         m_basePointSize = 10;
+
+    connect(m_browser, &MarkdownBrowser::imagesUpdated, this, [this]() {
+        const int pos = m_browser->verticalScrollBar()->value();
+        renderMarkdown();
+        m_browser->verticalScrollBar()->setValue(pos);
+    });
+
+    connect(m_browser, &QTextBrowser::anchorClicked, this, [this](const QUrl &url) {
+        // Internal anchor — scroll without leaving the document
+        if (url.scheme().isEmpty() && url.path().isEmpty() && !url.fragment().isEmpty()) {
+            m_browser->scrollToAnchor(url.fragment());
+            return;
+        }
+
+        // Resolve relative URLs against the directory of the current file
+        QUrl resolved = url;
+        if (url.isRelative() && !m_currentFilePath.isEmpty())
+            resolved = QUrl::fromLocalFile(m_currentFilePath).resolved(url);
+
+        if (resolved.isLocalFile()) {
+            const QString path = resolved.toLocalFile();
+            if (path.endsWith(".md", Qt::CaseInsensitive) ||
+                path.endsWith(".markdown", Qt::CaseInsensitive))
+                openFile(path);
+            return;
+        }
+
+        // External URL — ask before opening
+        const auto answer = QMessageBox::question(
+            this,
+            tr("Open External Link"),
+            tr("This link leads to an external website:\n\n%1\n\nOpen in browser?")
+                .arg(resolved.toString()),
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No
+        );
+        if (answer == QMessageBox::Yes)
+            QDesktopServices::openUrl(resolved);
+    });
+
+    // colorSchemeChanged fires directly from the OS signal (Qt 6.5+),
+    // catching theme switches that never propagate to ApplicationPaletteChange.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+            this, [this](Qt::ColorScheme) { updateTheme(); });
+#endif
+
+    m_debugWindow = new DebugWindow(this);
+    connect(m_browser, &MarkdownBrowser::logMessage,
+            m_debugWindow, &DebugWindow::appendMessage);
 
     m_watcher = new QFileSystemWatcher(this);
     connect(m_watcher, &QFileSystemWatcher::fileChanged,
@@ -85,6 +165,16 @@ void MainWindow::setupMenu()
     QAction *exitAction = fileMenu->addAction(tr("E&xit"));
     exitAction->setShortcut(QKeySequence::Quit);
     connect(exitAction, &QAction::triggered, this, &QWidget::close);
+
+    QMenu *viewMenu = menuBar()->addMenu(tr("&View"));
+
+    QAction *debugAction = viewMenu->addAction(tr("&Debug Log"));
+    debugAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+    connect(debugAction, &QAction::triggered, this, [this]() {
+        m_debugWindow->show();
+        m_debugWindow->raise();
+        m_debugWindow->activateWindow();
+    });
 }
 
 void MainWindow::setupStatusBar()
@@ -155,6 +245,7 @@ void MainWindow::onFileChanged(const QString &path)
 void MainWindow::renderMarkdown()
 {
     m_browser->setMarkdown(m_currentMarkdown);
+    isolateImages(m_browser->document());
     applyDocumentStyle();
 }
 
@@ -207,10 +298,26 @@ void MainWindow::updateZoomLabel()
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (obj == m_browser->viewport() && event->type() == QEvent::Wheel) {
-        const auto *we = static_cast<QWheelEvent *>(event);
-        if (we->modifiers() & Qt::ControlModifier)
-            QTimer::singleShot(0, this, &MainWindow::updateZoomLabel);
+    if (obj == m_browser->viewport()) {
+        if (event->type() == QEvent::Wheel) {
+            const auto *we = static_cast<QWheelEvent *>(event);
+            if (we->modifiers() & Qt::ControlModifier)
+                QTimer::singleShot(0, this, &MainWindow::updateZoomLabel);
+        } else if (event->type() == QEvent::ToolTip) {
+            const auto *he = static_cast<QHelpEvent *>(event);
+            const QString anchor = m_browser->anchorAt(he->pos());
+            if (!anchor.isEmpty()) {
+                QUrl url(anchor);
+                if (url.isRelative() && !m_currentFilePath.isEmpty())
+                    url = QUrl::fromLocalFile(m_currentFilePath).resolved(url);
+                QToolTip::showText(he->globalPos(), url.toString(),
+                                   m_browser->viewport());
+            } else {
+                QToolTip::hideText();
+                event->ignore();
+            }
+            return true;
+        }
     }
     return QMainWindow::eventFilter(obj, event);
 }
@@ -218,7 +325,29 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 void MainWindow::changeEvent(QEvent *event)
 {
     QMainWindow::changeEvent(event);
-    if (event->type() == QEvent::ApplicationPaletteChange && !m_currentMarkdown.isEmpty())
+    if (event->type() == QEvent::ApplicationPaletteChange)
+        updateTheme();
+}
+
+void MainWindow::updateTheme()
+{
+    // Prefer the OS-reported color scheme (Qt 6.5+); fall back to palette lightness.
+    bool isDark;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+    isDark = (scheme == Qt::ColorScheme::Dark) ||
+             (scheme == Qt::ColorScheme::Unknown &&
+              qApp->palette().color(QPalette::Window).lightness() < 128);
+#else
+    isDark = qApp->palette().color(QPalette::Window).lightness() < 128;
+#endif
+
+    QImage img(":/icon");
+    if (!isDark)
+        img.invertPixels();
+    qApp->setWindowIcon(QIcon(QPixmap::fromImage(img)));
+
+    if (!m_currentMarkdown.isEmpty())
         renderMarkdown();
 }
 

@@ -1,9 +1,10 @@
 #pragma once
 #include <QMainWindow>
+#include "MarkdownBrowser.h"
 
-class QTextBrowser;
 class QFileSystemWatcher;
 class QLabel;
+class DebugWindow;
 
 class MainWindow : public QMainWindow
 {
@@ -23,8 +24,9 @@ private slots:
     void onFileChanged(const QString &path);
 
 private:
-    QTextBrowser       *m_browser;
+    MarkdownBrowser    *m_browser;
     QFileSystemWatcher *m_watcher;
+    DebugWindow        *m_debugWindow;
     QLabel             *m_pathLabel;
     QLabel             *m_modifiedLabel;
     QLabel             *m_zoomLabel;
@@ -39,4 +41,5 @@ private:
     void applyDocumentStyle();
     void updateStatusBar();
     void updateZoomLabel();
+    void updateTheme();
 };

@@ -16,12 +16,16 @@ if(MSVC AND MSVC_VERSION LESS 1930)
         "  https://visualstudio.microsoft.com/downloads/")
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 set(SOURCES
     main.cpp
     MainWindow.cpp
     MainWindow.h
+    MarkdownBrowser.cpp
+    MarkdownBrowser.h
+    DebugWindow.cpp
+    DebugWindow.h
     resources.qrc
 )
 
@@ -50,7 +54,7 @@ else()
     add_executable(BlinkMD ${SOURCES})
 endif()
 
-target_link_libraries(BlinkMD PRIVATE Qt6::Widgets)
+target_link_libraries(BlinkMD PRIVATE Qt6::Widgets Qt6::Network)
 
 install(TARGETS BlinkMD
     BUNDLE  DESTINATION .
