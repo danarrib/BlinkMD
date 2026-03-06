@@ -1,8 +1,10 @@
 # BlinkMD
 
-<img width="512" height="512" alt="Image" src="https://github.com/user-attachments/assets/461b9adf-4966-409c-bb7a-bf5f5c9a9ae0" />
+<img width="256" height="256" alt="Image" src="https://github.com/user-attachments/assets/461b9adf-4966-409c-bb7a-bf5f5c9a9ae0" />
 
 A minimal, native Markdown viewer built with C++ and Qt 6. Open a file from the command line, drag and drop it onto the window, or use **File → Open** — BlinkMD renders it instantly and stays out of your way.
+
+<img width="1663" height="1202" alt="image" src="https://github.com/user-attachments/assets/ff800102-df38-415e-bea2-b3af79df69b4" />
 
 ## Features
 
